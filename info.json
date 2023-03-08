@@ -1,0 +1,9 @@
+{
+  "name": "multiplanet",
+  "version": "0.1.0",
+  "title": "Multiplanet",
+  "author": "Kellbot",
+  "factorio_version": "1.1",
+  "dependencies": ["base >= 1.1", "space-exploration >= 0.6.101"],
+  "description": "Some tools for multiplayer Factorio SE where each player may start on their own planet."
+}
