@@ -1,7 +1,9 @@
 -- control.lua
 -- Mar 2022
-require('scripts/external.lua')
-require('scripts/utils.lua')
+require "scripts/external"
+require "scripts/utils"
+require "scripts/spawn"
+
 
 SPAWN_COUNT = 60
 
@@ -12,6 +14,8 @@ script.on_init(function()
     end
     global.players = {}
     global.spawns = {}
+    global.mpse = { min_distance = 2000, spawn_type= "shared" }
+
 
 end)
 
@@ -51,18 +55,14 @@ script.on_event(defines.events.on_gui_click, function(event)
             
         elseif (st == 'own_base') then --if they want their own spawn on Nauvis
             local fn = 'Nauvis-'..player.name
-            game.create_force(fn)
-            local nvs = game.surfaces[1]
-            local distance_value = shared_flow.mpse_shared_slider.slider_value
-            --create spawn if there are none
-            if not global.spawns[nvs.name] or #global.spawns[nvs.name] < 1 then 
-                global.spawns[nvs.name] = createSpawns(nvs, SPAWN_COUNT, distance_value)
-            end   
+            player.force = game.create_force(fn)
             
-            local spawn = findSpawn(nvs, distance_value)
-            game.forces[fn].set_spawn_position(spawn, nvs)
-            player.force = game.forces[fn]
-            player.teleport({0,0}, nvs)
+            local nvs = game.surfaces[1]
+
+            local spawn = create_spawn(player)
+            --
+            -- player.force = game.forces[fn]
+            -- player.teleport({0,0}, nvs)
 
         elseif (st == 'shared') then
             player.force = 'Nauvis-Main'
@@ -125,8 +125,8 @@ function init_gui(player)
     button_flow.add{type="button", name="mpse_new_planet", caption={"mpse.own_planet"}}
     button_flow.add{type="button", name="mpse_new_base", caption={"mpse.own_base"}}
     button_flow.add{type="button", name="mpse_shared_base", caption={"mpse.shared_base"}, style="green_button"}
-    shared_flow.add{type="slider", name="mpse_shared_slider", value=1000, minimum_value=300, maximum_value=2000, value_step=100, style="notched_slider", enabled=false}
-    shared_flow.add{type="textfield", name="mpse_shared_textfield", text="1000", numeric=true, allow_decimal=false, allow_negative=false, style="mpse_controls_textfield", enabled=false}
+    shared_flow.add{type="slider", name="mpse_shared_slider", value= global.mpse.min_distance, minimum_value= global.mpse.min_distance, maximum_value=5000, value_step=200, style="notched_slider", enabled=false}
+    shared_flow.add{type="textfield", name="mpse_shared_textfield", text=  tostring(global.mpse.min_distance), numeric=true, allow_decimal=false, allow_negative=false, style="mpse_controls_textfield", enabled=false}
     shared_flow.mpse_shared_slider.enabled = false;
 
     local confirm_flow = main_frame.add{type="flow", name="confirm_flow", direction="horizontal", style="mpse_bottom_flow"}
@@ -146,7 +146,7 @@ script.on_event(defines.events.on_player_created, function(event)
     global.open_informatron_check = true -- triggers a check in `on_nth_tick_60`
 
     local player = game.players[event.player_index]
-    global.players[player.index] = { spawn_type = "shared" }
+    global.players[player.index] = { spawn_type = global.mpse.spawn_type}
  
 
 end)
