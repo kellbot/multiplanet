@@ -16,6 +16,14 @@ styles["mpse_controls_flow"] = {
     bottom_margin = 8
 }
 
+styles["mpse_bottom_flow"] = {
+    type = "horizontal_flow_style",
+    vertical_align = "center",
+    horizontal_spacing = 20,
+    top_margin = 8,
+    horizontal_align = "right",
+}
+
 
 styles["mpse_controls_textfield"] = {
     type = "textbox_style",

@@ -1,11 +1,11 @@
 -- control.lua
 -- Mar 2022
+require('scripts/external.lua')
 
 script.on_init(function()
     local freeplay = remote.interfaces["freeplay"]
     if freeplay then  -- Disable freeplay popup-message
         if freeplay["set_skip_intro"] then remote.call("freeplay", "set_skip_intro", true) end
-        if freeplay["set_disable_crashsite"] then remote.call("freeplay", "set_disable_crashsite", true) end
     end
     global.players = {}
 end)
@@ -19,6 +19,7 @@ script.on_event(defines.events.on_gui_click, function(event)
     local player_global = global.players[event.player_index]
     local player = game.get_player(event.player_index)
     
+    local main_frame = player.gui.screen.mpse_main_frame
     local button_flow = player.gui.screen.mpse_main_frame.content_frame.button_flow
     local shared_flow = player.gui.screen.mpse_main_frame.content_frame.shared_flow
 
@@ -32,6 +33,23 @@ script.on_event(defines.events.on_gui_click, function(event)
     if event.element.name == "mpse_shared_base" then
         player_global.spawn_type = 'shared'
     end
+    if event.element.name == "mpse_continue" then
+        local st = player_global.spawn_type 
+        if (st == "own_planet") then
+
+
+            local fn = "Planet-"..player.name
+            remote.call("space-exploration", "setup_multiplayer_test", { force_name = fn, players = {player}, match_nauvis_seed = false})
+            build_crash_site(player.surface.index)
+            player.print("Welcome to planet "..player.surface.name)
+            main_frame.visible = false
+        elseif (st == 'own_base') then
+            local fn = 'Nauvis-'..player.name
+            -- game.forces['name'].set_spawn_position({x = #, y = #}, game.surfaces[1])
+        elseif (st == 'shared') then
+            player.force = 'Nauvis-Main'
+        end
+    end
 
 
     shared_flow.mpse_shared_slider.enabled = (player_global.spawn_type == 'shared')
@@ -39,7 +57,9 @@ script.on_event(defines.events.on_gui_click, function(event)
 
     button_flow.mpse_new_planet.style = player_global.spawn_type == 'own_planet' and 'green_button' or 'button'
     button_flow.mpse_new_base.style = player_global.spawn_type == 'own_base' and 'green_button' or 'button'
-    button_flow.mpse_shared_base.style = player_global.spawn_type == 'shared"' and 'green_button' or 'button'
+    button_flow.mpse_shared_base.style = player_global.spawn_type == 'shared' and 'green_button' or 'button'
+
+
 
 end)
 
@@ -68,19 +88,14 @@ script.on_event(defines.events.on_gui_value_changed, function(event)
         end
     end)
 end)
-----------------------------------------
--- Player Events
--- 
-----------------------------------------
 
-script.on_event(defines.events.on_player_created, function(event)
-    local player = game.players[event.player_index]
-    global.players[player.index] = { controls_active = true }
+
+function init_gui(player)
 
     local screen_element = player.gui.screen
-    local main_frame = screen_element.add{type="frame", name="mpse_main_frame", caption={"mpse.join_window"}}
-    main_frame.style.size = {530, 165}
+    local main_frame = screen_element.add{type="frame", direction="vertical", name="mpse_main_frame", caption={"mpse.join_window"}}
     main_frame.auto_center = true
+    main_frame.style.vertically_stretchable = "on"
     
 
 
@@ -96,7 +111,34 @@ script.on_event(defines.events.on_player_created, function(event)
     shared_flow.add{type="textfield", name="mpse_shared_textfield", text="1000", numeric=true, allow_decimal=false, allow_negative=false, style="mpse_controls_textfield", enabled=false}
     shared_flow.mpse_shared_slider.enabled = false;
 
-    local confirm_flow = main_frame.add({type="flow", name="confirm_flow", direction="horizontal"})
-    local continue_button = confirm_flow.add({type="button", name="mpse_continue", caption={"continue"}, style="confirm_button"})
+    local confirm_flow = main_frame.add{type="flow", name="confirm_flow", direction="horizontal", style="mpse_bottom_flow"}
+    local continue_button = confirm_flow.add{type="button", name="mpse_continue", caption={"continue"}, style="confirm_button"}
+    continue_button.style.horizontal_align = "right"
+end
+
+function gui_open(player)
+    init_gui(player)
+end
+----------------------------------------
+-- Player Events
+-- 
+----------------------------------------
+
+script.on_event(defines.events.on_player_created, function(event)
+    global.open_informatron_check = true -- triggers a check in `on_nth_tick_60`
+
+    local player = game.players[event.player_index]
+    global.players[player.index] = { spawn_type = "shared" }
+ 
 
 end)
+
+function on_nth_tick_30(event)
+    if global.open_informatron_check and event.tick >= 600 then
+        for _, player in pairs(game.connected_players) do
+            gui_open(player)
+        end
+        global.open_informatron_check = nil
+    end
+end
+script.on_nth_tick(30, on_nth_tick_30)
