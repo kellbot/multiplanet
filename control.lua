@@ -1,6 +1,9 @@
 -- control.lua
 -- Mar 2022
 require('scripts/external.lua')
+require('scripts/utils.lua')
+
+SPAWN_COUNT = 60
 
 script.on_init(function()
     local freeplay = remote.interfaces["freeplay"]
@@ -8,6 +11,8 @@ script.on_init(function()
         if freeplay["set_skip_intro"] then remote.call("freeplay", "set_skip_intro", true) end
     end
     global.players = {}
+    global.spawns = {}
+
 end)
 
 
@@ -43,9 +48,22 @@ script.on_event(defines.events.on_gui_click, function(event)
             build_crash_site(player.surface.index)
             player.print("Welcome to planet "..player.surface.name)
             main_frame.visible = false
-        elseif (st == 'own_base') then
+            
+        elseif (st == 'own_base') then --if they want their own spawn on Nauvis
             local fn = 'Nauvis-'..player.name
-            -- game.forces['name'].set_spawn_position({x = #, y = #}, game.surfaces[1])
+            game.create_force(fn)
+            local nvs = game.surfaces[1]
+            local distance_value = shared_flow.mpse_shared_slider.slider_value
+            --create spawn if there are none
+            if not global.spawns[nvs.name] or #global.spawns[nvs.name] < 1 then 
+                global.spawns[nvs.name] = createSpawns(nvs, SPAWN_COUNT, distance_value)
+            end   
+            
+            local spawn = findSpawn(nvs, distance_value)
+            game.forces[fn].set_spawn_position(spawn, nvs)
+            player.force = game.forces[fn]
+            player.teleport({0,0}, nvs)
+
         elseif (st == 'shared') then
             player.force = 'Nauvis-Main'
         end
