@@ -1,8 +1,8 @@
 -- This is only here beacuse the crash site builder in AAI Industry is hardcoded to Nauvis
-function build_crash_site(surface_id)
+function build_crash_site(surface_id, pos)
   local surface = game.surfaces[surface_id]
   local range = 20
-  local trees = surface.find_entities_filtered{type="tree", area={{-range, -range}, {range, range}}}
+  local trees = surface.find_entities_filtered{type="tree", area={{-range + pos.x, -range + pos.y}, {range + pos.x, range+pos.y}}}
   for _, tree in pairs(trees) do
       local distance = math.sqrt(tree.position.x * tree.position.x +  tree.position.y * tree.position.y)
       if math.random() > (distance / range) * 3 - 2 then
@@ -34,7 +34,8 @@ function build_crash_site(surface_id)
   for _, settings in pairs(create_list) do
     local min_radius = settings.min_radius or 0
     for i = 1, settings.count, 1 do
-      local try_position = {x = 0, y = 0}
+      local try_position = pos --{x = 0, y = 0}
+      log(try_position)
       local safe_position = surface.find_non_colliding_position("aai-big-ship-wreck-1", try_position, 50, 1)
       safe_position = safe_position or try_position
       for _, name in pairs(settings.names) do
@@ -70,109 +71,113 @@ function build_crash_site(surface_id)
   global.starting_containers = containers
 end
 
--- from https://github.com/Oarcinae/FactorioScenarioMultiplayerSpawn
--- Function to generate a resource patch, of a certain size/amount at a pos.
-function GenerateResourcePatch(surface, resourceName, diameter, pos, amount)
-  local midPoint = math.floor(diameter/2)
-  if (diameter == 0) then
-      return
-  end
-  for y=-midPoint, midPoint do
-      for x=-midPoint, midPoint do
-          if ((x)^2 + (y)^2 < midPoint^2) then
-              surface.create_entity({name=resourceName, amount=amount,
-                  position={pos.x+x, pos.y+y}})
-          end
-      end
-  end
+
+
+
+-- This is here because I don't know of another way to create staring resources
+function mpse_vectors_add(a, b)
+  return {x = a.x + b.x, y = a.y + b.y}
 end
 
--- Generate the basic starter resource around a given location.
-function GenerateStartingResources(pos, surface)
-
-  local rand_settings = {enabled = true, radius = 45, angle_offset = 2.32, angle_final = 4.46}
-  local resource_tiles =  {
-      ["iron-ore"] =
-      {
-          amount = 1500,
-          size = 18,
-          x_offset = -29,
-          y_offset = 16
-      },
-      ["copper-ore"] =
-      {
-          amount = 1200,
-          size = 18,
-          x_offset = -28,
-          y_offset = -3
-      },
-      ["stone"] =
-      {
-          amount = 1200,
-          size = 16,
-          x_offset = -27,
-          y_offset = -34
-      },
-      ["coal"] =
-      {
-          amount = 1200,
-          size = 16,
-          x_offset = -27,
-          y_offset = -20
-      }
-    }
-    resource_patches =
-    {
-        ["crude-oil"] =
-        {
-            num_patches = 2,
-            amount = 900000,
-            x_offset_start = -3,
-            y_offset_start = 48,
-            x_offset_next = 6,
-            y_offset_next = 0
-        }
-    }
-  -- Generate all resource tile patches
+function mpse_orientation_to_vector(orientation, length)
+  return {x = length * math.sin(orientation * 2 * math.pi), y = -length * math.cos(orientation * 2 * math.pi)}
+end
+function mpse_tile_to_position(tile_position)
+  return {x = math.floor(tile_position.x)+0.5, y = math.floor(tile_position.y)+0.5}
+end
 
 
-    -- Create list of resource tiles
-    local r_list = {}
-    for k,_ in pairs(resource_tiles) do
-        if (k ~= "") then
-            table.insert(r_list, k)
-        end
-    end
-    local shuffled_list = FYShuffle(r_list)
+function mpse_spawn_small_resources(surface, pos)
 
-    -- This places resources in a semi-circle
-    -- Tweak in config.lua
-    local angle_offset = rand_settings.angle_offset
-    local num_resources = #resource_tiles
-    local theta = ((rand_settings.angle_final - rand_settings.angle_offset) / num_resources);
-    local count = 0
+  local seed = surface.map_gen_settings.seed
+  local rng = game.create_random_generator(seed)
+  -- The starting resourecs of the map generation are inconsistent and spread out.
+  -- Add some tiny patches to reduce the amount of running around at the start.
+  -- We only care about super-early game, so just iron, copper, stone, and coal.
+  -- If there are other resources added to the game then the naturally spawned resources will have to do for now.
+  -- These resources are not designed to replace the normal starting resources at all.
+  local valid_position_search_range = 256
+  local cluster_primary_radius = 1-- get away from crash site
+  local cluster_secondary_radius = 50
+  local resources = {}
+  if game.entity_prototypes["iron-ore"] then table.insert(resources, { name = "iron-ore", tiles = 200, amount = 100000}) end
+  if game.entity_prototypes["copper-ore"] then table.insert(resources, { name = "copper-ore", tiles = 150, amount = 80000}) end
+  if game.entity_prototypes["stone"] then table.insert(resources, { name = "stone", tiles = 150, amount = 80000}) end
+  if game.entity_prototypes["coal"] then table.insert(resources, { name = "coal", tiles = 150, amount = 80000}) end
 
-    for _,k_name in pairs (shuffled_list) do
-        local angle = (theta * count) + angle_offset;
+  local cluster_orientation = rng()
+  local secondary_orientation = rng()
+  local cluster_position = pos --mpse_orientation_to_vector(cluster_orientation, cluster_primary_radius)
+  surface.request_to_generate_chunks(cluster_position, 4)
+  surface.force_generate_chunk_requests()
 
-        local tx = (rand_settings.radius * math.cos(angle)) + pos.x
-        local ty = (rand_settings.radius * math.sin(angle)) + pos.y
+  log("[gps="..math.floor(cluster_position.x)..","..math.floor(cluster_position.y).."]")
+  local closed_tiles = {} -- 2d disctionary
+  local open_tiles = {} -- 1d array
 
-        local pos = {x=math.floor(tx), y=math.floor(ty)}
-        GenerateResourcePatch(surface, k_name, resource_tiles[k_name].size, pos, resource_tiles[k_name].amount)
-        count = count+1
-    end
-
-
-  -- Generate special resource patches (oil)
-  for p_name,p_data in pairs (resource_patches) do
-      local oil_patch_x=pos.x+p_data.x_offset_start
-      local oil_patch_y=pos.y+p_data.y_offset_start
-      for i=1,p_data.num_patches do
-          surface.create_entity({name=p_name, amount=p_data.amount,
-                      position={oil_patch_x, oil_patch_y}})
-          oil_patch_x=oil_patch_x+p_data.x_offset_next
-          oil_patch_y=oil_patch_y+p_data.y_offset_next
-      end
+  local function close_tile(position)
+    closed_tiles[position.x] = closed_tiles[position.x] or {}
+    closed_tiles[position.x][position.y] = true
   end
+  local function open_tile(set, position) -- don't open if closed
+    if not (closed_tiles[position.x] and closed_tiles[position.x][position.y]) then
+      table.insert(set, position)
+      close_tile(position)
+    end
+  end
+  local function open_neighbour_tiles(set, position)
+    open_tile(set, mpse_vectors_add(position, {x=0,y=-1}))
+    open_tile(set, mpse_vectors_add(position, {x=1,y=0}))
+    open_tile(set, mpse_vectors_add(position, {x=0,y=1}))
+    open_tile(set, mpse_vectors_add(position, {x=-1,y=0}))
+  end
+
+  for i, resource in pairs(resources) do
+    resource.orientation = secondary_orientation + rng()
+    local offset = mpse_orientation_to_vector(resource.orientation, rng(cluster_secondary_radius/2, cluster_secondary_radius))
+    local position = mpse_tile_to_position(mpse_vectors_add(offset, cluster_position))
+
+    local valid = surface.find_non_colliding_position(resource.name, position, valid_position_search_range, 1, true)
+    if not valid then log("no valid position found") end
+    resource.start_point = surface.find_non_colliding_position(resource.name, position, valid_position_search_range, 1, true) or position
+    resource.open_tiles = {resource.start_point}
+    resource.entities = {}
+    resource.amount_placed = 0
+  end
+  local continue = true
+  local repeats = 0
+  while continue and repeats < 1000 do
+    repeats = repeats + 1
+    continue = false
+    for _, resource in pairs(resources) do
+      --if #resource.entities < resource.tiles then
+      if resource.amount_placed < resource.amount then
+        continue = true
+        local try_tile
+        if #resource.open_tiles > 0 then
+          local choose = rng(#resource.open_tiles)
+          try_tile = resource.open_tiles[choose]
+          close_tile(try_tile)
+        end
+        if not try_tile then -- handle tiny island case
+          try_tile = resource.start_point
+        end
+        local position = surface.find_non_colliding_position(resource.name, try_tile, valid_position_search_range, 1, true)
+        if not position then -- exit
+          resource.amount_placed = resource.amount
+          log("Space Exploration failed to place starting resource, no valid positions in range. [".. resource.name.."]")
+        else
+          close_tile(try_tile)
+          close_tile(position)
+          local remaining = resource.amount - resource.amount_placed
+          local amount = math.ceil(math.min( remaining * (0.01 + rng() * 0.005) + 100 + rng() * 100, remaining))
+          resource.amount_placed = resource.amount_placed + amount
+          table.insert(resource.entities, surface.create_entity{name = resource.name, position=position, amount=amount, enable_tree_removal=true, snap_to_tile_center =true})
+          --Log.trace("Starting resource entity created "..resource.name.." ".. position.x.." "..position.y)
+          open_neighbour_tiles(resource.open_tiles, position)
+        end
+      end
+    end
+  end
+
 end
