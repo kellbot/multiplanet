@@ -5,7 +5,6 @@ local chart_size = (request_gen_size * 32) + 32
 local debug = false
 
 -- Globals
-global.delayed_actions = {}
 global.radius_distance = 500
 
 function distance(x1, y1, x2, y2)
@@ -124,26 +123,4 @@ end)
 commands.add_command("sl_respawn", "", function (event)
     local player = game.players[event.player_index]
     create_spawn(player)
-end)
-
-script.on_event(defines.events, function(event)
-    -- On Tick Event
-    if event.name == defines.events.on_tick then
-        -- Every 30 Ticks
-        if game.tick % 30 == 0 then
-            for i, action in pairs(global.delayed_actions) do
-                if game.tick >= action.tick + action.delay then
-                    if action.name == "generate"    then generate(i, action)    end
-                    if action.name == "chart"		then chart(i, action)    	end
-                    if action.name == "clear"       then clear(i, action)       end
-                    if action.name == "ore"         then ore(i, action)         end
-                    if action.name == "rechart"		then rechart(i, action)    	end
-                    if action.name == "water"		then water(i, action)    	end
-                    if action.name == "teleport"    then teleport(i, action)    end
-                end
-            end
-        end
-    end
-
-
 end)

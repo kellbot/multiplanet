@@ -1,5 +1,5 @@
 -- This is only here beacuse the crash site builder in AAI Industry is hardcoded to Nauvis
-function build_crash_site(surface_id, pos)
+function build_crash_site(surface_id, pos, force)
   local surface = game.surfaces[surface_id]
   local range = 20
   local trees = surface.find_entities_filtered{type="tree", area={{-range + pos.x, -range + pos.y}, {range + pos.x, range+pos.y}}}
@@ -15,6 +15,7 @@ function build_crash_site(surface_id, pos)
   end
 
   local create_list = {
+    {names = {"crash-site-spaceship"}, count = 1, radius = 20},
     {names = {"rock-small"}, count = 30, radius = 5},
     {names = {"rock-small"}, count = 30, radius = 10},
     {names = {"rock-small"}, count = 30, radius = 20},
@@ -42,7 +43,7 @@ function build_crash_site(surface_id, pos)
         if name == "rock-small" then
           surface.create_decoratives{check_collision = false, decoratives={{name=name, position = safe_position, amount = math.ceil(math.random() * 7)}}}
         else
-          local entity = surface.create_entity{name=name, position=safe_position, force = game.forces["player"]}
+          local entity = surface.create_entity{name=name, position=safe_position, force = force}
           if not script.active_mods.IndustrialRevolution then
             if name == "aai-big-ship-wreck-1" and not game.item_prototypes["burner-assembling-machine"].has_flag("hidden") then
               entity.insert({name = "burner-assembling-machine"})
@@ -69,9 +70,8 @@ function build_crash_site(surface_id, pos)
     end
   end
   global.starting_containers = containers
+
 end
-
-
 
 
 -- This is here because I don't know of another way to create staring resources

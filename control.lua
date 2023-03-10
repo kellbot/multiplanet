@@ -16,6 +16,12 @@ script.on_init(function()
     global.spawns = {{name = 'player', x = 0, y = 0, tries = 0}}
     global.mpse = { min_distance = 1500, spawn_type= "shared" }
     global.mpse.relocate_event = script.generate_event_name()
+    global.mpse.system_forces = {   enemy = true,
+                                    neutral = true,
+                                    capture= true,
+                                    conquest= true,
+                                    ignore= true,
+                                    friendly= true}
 
 
 end)
@@ -51,7 +57,12 @@ script.on_event(defines.events.on_gui_click, function(event)
             local fn = "Planet-"..player.name
             remote.call("space-exploration", "setup_multiplayer_test", { force_name = fn, players = {player}, match_nauvis_seed = false})
             local pos = {x = 0, y = 0}
-            build_crash_site(player.surface.index, pos)
+            build_crash_site(player.surface.index, pos, player.force)
+            player.force.set_friend('player', true)
+
+            for __, force in pairs(game.forces) do
+                if not is_system_force(force.name) then player.force.set_friend(force, true) end
+            end
             script.raise_event(global.mpse.relocate_event, {})
             table.insert(global.spawns, {name = fn, x = 0, y = 0, tries = 0})
             
@@ -132,10 +143,12 @@ function init_gui(player)
     slider.style.width = 250
     local distance_text = shared_flow.add{type="textfield", name="mpse_shared_textfield", text=  tostring(global.mpse.min_distance), numeric=true, allow_decimal=false, allow_negative=false, style="mpse_controls_textfield", enabled=false}
     distance_text.enabled = false;
-    distance_text.style.width = 50
-    
 
     local confirm_flow = main_frame.add{type="flow", name="confirm_flow", direction="horizontal", style="mpse_bottom_flow"}
+    local filler = confirm_flow.add{type="empty-widget", style="draggable_space_with_no_left_margin"}
+    filler.style.height = 30
+    filler.style.width = 300
+    filler.style.vertically_stretchable = false
     local continue_button = confirm_flow.add{type="button", name="mpse_continue", caption={"continue"}, style="confirm_button"}
     confirm_flow.style.horizontal_align = "right"
 
@@ -173,6 +186,55 @@ script.on_event(defines.events.on_player_created, function(event)
  
 
 end)
+
+----------------------------------------
+----- Research 
+----------------------------------------
+-- Research Complete
+script.on_event(defines.events.on_research_finished, function(event)
+    local technology = event.research
+    -- look for forces who haven't completed the research
+    for __, f in pairs(game.forces) do
+        if not f.technologies[technology.name].researched then
+        -- Give them a 25% completion bump
+            local progress = f.get_saved_technology_progress(technology.name)
+            local current_research = f.current_research
+            local queue = f.research_queue
+            local is_active = false
+            if current_research and current_research.name == technology.name then -- if they're currently working on it we need to pause it
+                is_active = true 
+                f.research_queue = nil
+            end
+
+            if not progress then --they haven't started it
+                f.set_saved_technology_progress(technology.name, 0.25)
+            else 
+                local new_progress = progress + 0.25
+                if new_progress >= 1 then 
+                    if is_active then
+                        new_progress = 0.99
+                        f.set_saved_technology_progress(technology.name, new_progress)
+                    else 
+                        f.researched = true
+                    end
+                else 
+                    f.set_saved_technology_progress(technology.name, new_progress)
+                end
+            end
+            if is_active then
+                f.add_research(technology.name)
+                f.research_queue = queue
+            end
+            -- TODO : localize this
+            f.print("Congratulations, " .. technology.force.name .. " have completed " .. technology.name .. " and contributed their knowledge to your progress")
+        end
+    end
+end)
+
+
+----------------------------------------
+---- Cutscene / GUI stuff
+----------------------------------------
 
 script.on_event(defines.events.on_cutscene_cancelled, function (event)
     local player = game.players[event.player_index]

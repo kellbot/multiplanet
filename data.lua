@@ -18,16 +18,14 @@ styles["mpse_controls_flow"] = {
 
 styles["mpse_bottom_flow"] = {
     type = "horizontal_flow_style",
-    vertical_align = "center",
-    horizontal_spacing = 20,
-    top_margin = 8,
-    horizontal_align = "right",
+    parent = "relative_gui_bottom_flow",
+    top_margin = 8
 }
 
 
 styles["mpse_controls_textfield"] = {
     type = "textbox_style",
-    width = 36
+    width = 50
 }
 
 styles["mpse_deep_frame"] = {
