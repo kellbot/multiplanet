@@ -68,6 +68,7 @@ script.on_event(defines.events.on_gui_click, function(event)
             if game.active_mods['biter-remover'] then
                 remove_hostile_biters(player.force, {player.surface})
             end
+            gui_close(player)
             
         elseif (st == 'own_base') then --if they want their own spawn on Nauvis
             local fn = 'Nauvis-'..player.name
@@ -84,6 +85,7 @@ script.on_event(defines.events.on_gui_click, function(event)
             end
             -- no biters on nauvis                                
             remove_hostile_biters(player.force, {game.surfaces[1]})
+            gui_close(player)
         elseif (st == 'shared') then
             
             player.force = game.forces['Nauvis-Main'] and game.forces['Nauvis-Main'] or game.create_force('Nauvis-Main')
@@ -91,7 +93,9 @@ script.on_event(defines.events.on_gui_click, function(event)
             remove_hostile_biters(game.forces['player'], {game.surfaces[1]})
             table.insert(global.spawns, {name = player.force.name, x = 0, y = 0, tries = 0})
             script.raise_event(global.mpse.relocate_event, {})
+            gui_close(player)
         end
+
     end
 
 
@@ -166,9 +170,9 @@ function init_gui(player)
     local continue_button = confirm_flow.add{type="button", name="mpse_continue", caption={"continue"}, style="confirm_button"}
     confirm_flow.style.horizontal_align = "right"
 
-    script.on_event(global.mpse.relocate_event, function(event)
-        gui_close(player)
-    end)
+    -- script.on_event(global.mpse.relocate_event, function(event)
+    --     gui_close(player)
+    -- end)
 end
 
 function gui_open(player)
