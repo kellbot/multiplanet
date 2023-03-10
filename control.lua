@@ -71,14 +71,23 @@ script.on_event(defines.events.on_gui_click, function(event)
             
         elseif (st == 'own_base') then --if they want their own spawn on Nauvis
             local fn = 'Nauvis-'..player.name
-            if not game.forces[fn] then player.force = game.create_force(fn)  end
+            if not game.forces[fn] then 
+                player.force = game.create_force(fn)  
+            else 
+                player.force = game.forces[fn]
+            end
+
             local spawn = create_spawn(player)
 
+            for __, force in pairs(game.forces) do
+                if not is_system_force(force.name) then player.force.set_friend(force, true) end
+            end
             -- no biters on nauvis                                
-            remove_hostile_biters(game.forces['player'], {game.surfaces[1]})
+            remove_hostile_biters(player.force, {game.surfaces[1]})
         elseif (st == 'shared') then
             
             player.force = game.forces['Nauvis-Main'] and game.forces['Nauvis-Main'] or game.create_force('Nauvis-Main')
+            
             remove_hostile_biters(game.forces['player'], {game.surfaces[1]})
             table.insert(global.spawns, {name = player.force.name, x = 0, y = 0, tries = 0})
             script.raise_event(global.mpse.relocate_event, {})
@@ -195,6 +204,38 @@ end)
 ----------------------------------------
 ----- Research 
 ----------------------------------------
+function boost_research(force, technology, amount) 
+    local progress = force.get_saved_technology_progress(technology.name)
+    local current_research = force.current_research
+    local queue = force.research_queue
+    local is_active = false
+    if current_research and current_research.name == technology.name then -- if they're currently working on it we need to pause it
+        is_active = true 
+        force.research_queue = nil
+    end
+
+    if not progress then --they haven't started it
+        force.set_saved_technology_progress(technology.name, amount)
+    else 
+        local new_progress = progress + amount
+        if new_progress >= 1 then 
+            if is_active then
+                new_progress = 0.99
+                force.set_saved_technology_progress(technology.name, new_progress)
+            else 
+                force.researched = true
+            end
+        else 
+            force.set_saved_technology_progress(technology.name, new_progress)
+        end
+    end
+    if is_active then
+        force.add_research(technology.name)
+        force.research_queue = queue
+    end
+end
+
+
 if settings.global["shared-research-progress"] then
     -- Research Complete
     script.on_event(defines.events.on_research_finished, function(event)
@@ -203,40 +244,26 @@ if settings.global["shared-research-progress"] then
         for __, f in pairs(game.forces) do
             if not f.technologies[technology.name].researched then
             -- Give them a 25% completion bump
-                local progress = f.get_saved_technology_progress(technology.name)
-                local current_research = f.current_research
-                local queue = f.research_queue
-                local is_active = false
-                if current_research and current_research.name == technology.name then -- if they're currently working on it we need to pause it
-                    is_active = true 
-                    f.research_queue = nil
-                end
-
-                if not progress then --they haven't started it
-                    f.set_saved_technology_progress(technology.name, 0.25)
-                else 
-                    local new_progress = progress + 0.25
-                    if new_progress >= 1 then 
-                        if is_active then
-                            new_progress = 0.99
-                            f.set_saved_technology_progress(technology.name, new_progress)
-                        else 
-                            f.researched = true
-                        end
-                    else 
-                        f.set_saved_technology_progress(technology.name, new_progress)
-                    end
-                end
-                if is_active then
-                    f.add_research(technology.name)
-                    f.research_queue = queue
-                end
-                -- TODO : localize this
+                boost_research(f, technology, 0.25)
                 f.print({"mpse.technology_progress", technology.force.name, technology.name})
             end
         end
     end)
+    
+    -- When someone new joins we need to catch them up
+    script.on_event(defines.events.on_force_created, function(event) 
+        local new_force = event.force
+        for __, f in pairs(game.forces) do
+            for __, t in pairs(f.technologies) do
+                if t.researched then
+                    boost_research(new_force, t, 0.25)
+                end
+            end
+        end
+
+    end)
 end
+
 
 
 ----------------------------------------

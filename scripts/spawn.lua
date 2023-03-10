@@ -82,7 +82,7 @@ function teleport(action)
 end
 
 function create_spawn(player)
-    player.print('Locating a new spawn, Please wait...', {r=0.1, g=0.1, b=0.8, a=1})
+    player.print('Locating a new spawn, Please wait...')
     local min_distance_from_others = global.mpse.min_distance
     local radius_increment = (min_distance_from_others / 10)
     -- Distance spawns
@@ -106,7 +106,6 @@ function create_spawn(player)
         
         -- Check passed
         if check then
-            game.print(distance(0, 0, x, y))
             generate({player = player, x = x, y = y, tick = game.tick, delay = 0})
         else
             global.radius_distance = global.radius_distance + radius_increment
