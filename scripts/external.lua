@@ -231,5 +231,5 @@ function remove_hostile_biters(force, surfaces)
         table.insert(surface_names, surface.name)
     end
     table.sort(surface_names)
-    game.print({"mpse.br-biters-removed", force.name, table.concat(surface_names, ", ")})
+    game.print({"mpse.br-biters-removed", table.concat(surface_names, ", ")})
 end

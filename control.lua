@@ -195,46 +195,48 @@ end)
 ----------------------------------------
 ----- Research 
 ----------------------------------------
--- Research Complete
-script.on_event(defines.events.on_research_finished, function(event)
-    local technology = event.research
-    -- look for forces who haven't completed the research
-    for __, f in pairs(game.forces) do
-        if not f.technologies[technology.name].researched then
-        -- Give them a 25% completion bump
-            local progress = f.get_saved_technology_progress(technology.name)
-            local current_research = f.current_research
-            local queue = f.research_queue
-            local is_active = false
-            if current_research and current_research.name == technology.name then -- if they're currently working on it we need to pause it
-                is_active = true 
-                f.research_queue = nil
-            end
-
-            if not progress then --they haven't started it
-                f.set_saved_technology_progress(technology.name, 0.25)
-            else 
-                local new_progress = progress + 0.25
-                if new_progress >= 1 then 
-                    if is_active then
-                        new_progress = 0.99
-                        f.set_saved_technology_progress(technology.name, new_progress)
-                    else 
-                        f.researched = true
-                    end
-                else 
-                    f.set_saved_technology_progress(technology.name, new_progress)
+if settings.global["shared-research-progress"] then
+    -- Research Complete
+    script.on_event(defines.events.on_research_finished, function(event)
+        local technology = event.research
+        -- look for forces who haven't completed the research
+        for __, f in pairs(game.forces) do
+            if not f.technologies[technology.name].researched then
+            -- Give them a 25% completion bump
+                local progress = f.get_saved_technology_progress(technology.name)
+                local current_research = f.current_research
+                local queue = f.research_queue
+                local is_active = false
+                if current_research and current_research.name == technology.name then -- if they're currently working on it we need to pause it
+                    is_active = true 
+                    f.research_queue = nil
                 end
+
+                if not progress then --they haven't started it
+                    f.set_saved_technology_progress(technology.name, 0.25)
+                else 
+                    local new_progress = progress + 0.25
+                    if new_progress >= 1 then 
+                        if is_active then
+                            new_progress = 0.99
+                            f.set_saved_technology_progress(technology.name, new_progress)
+                        else 
+                            f.researched = true
+                        end
+                    else 
+                        f.set_saved_technology_progress(technology.name, new_progress)
+                    end
+                end
+                if is_active then
+                    f.add_research(technology.name)
+                    f.research_queue = queue
+                end
+                -- TODO : localize this
+                f.print({"mpse.technology_progress", technology.force.name, technology.name})
             end
-            if is_active then
-                f.add_research(technology.name)
-                f.research_queue = queue
-            end
-            -- TODO : localize this
-            f.print("Congratulations, " .. technology.force.name .. " have completed " .. technology.name .. " and contributed their knowledge to your progress")
         end
-    end
-end)
+    end)
+end
 
 
 ----------------------------------------
