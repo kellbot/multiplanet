@@ -65,16 +65,21 @@ script.on_event(defines.events.on_gui_click, function(event)
             end
             script.raise_event(global.mpse.relocate_event, {})
             table.insert(global.spawns, {name = fn, x = 0, y = 0, tries = 0})
+            if game.active_mods['biter-remover'] then
+                remove_hostile_biters(player.force, {player.surface})
+            end
             
         elseif (st == 'own_base') then --if they want their own spawn on Nauvis
             local fn = 'Nauvis-'..player.name
             if not game.forces[fn] then player.force = game.create_force(fn)  end
             local spawn = create_spawn(player)
 
+            -- no biters on nauvis                                
+            remove_hostile_biters(game.forces['player'], {game.surfaces[1]})
         elseif (st == 'shared') then
             
             player.force = game.forces['Nauvis-Main'] and game.forces['Nauvis-Main'] or game.create_force('Nauvis-Main')
-            
+            remove_hostile_biters(game.forces['player'], {game.surfaces[1]})
             table.insert(global.spawns, {name = player.force.name, x = 0, y = 0, tries = 0})
             script.raise_event(global.mpse.relocate_event, {})
         end
