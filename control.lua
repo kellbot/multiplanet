@@ -227,7 +227,7 @@ function boost_research(force, technology, amount)
                 new_progress = 0.99
                 force.set_saved_technology_progress(technology.name, new_progress)
             else 
-                force.researched = true
+                force.technologies[technology.name].researched = true
             end
         else 
             force.set_saved_technology_progress(technology.name, new_progress)
