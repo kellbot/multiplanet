@@ -209,7 +209,6 @@ end)
 ----- Research 
 ----------------------------------------
 function boost_research(force, technology, amount) 
-    local progress = force.get_saved_technology_progress(technology.name)
     local current_research = force.current_research
     local queue = force.research_queue
     local is_active = false
@@ -217,6 +216,8 @@ function boost_research(force, technology, amount)
         is_active = true 
         force.research_queue = nil
     end
+    
+    local progress = force.get_saved_technology_progress(technology.name)
 
     if not progress then --they haven't started it
         force.set_saved_technology_progress(technology.name, amount)
@@ -248,7 +249,7 @@ if settings.global["shared-research-progress"] then
         for __, f in pairs(game.forces) do
             if not f.technologies[technology.name].researched then
             -- Give them a 25% completion bump
-                boost_research(f, technology, 0.25)
+                boost_research(f, technology, 0.15)
                 f.print({"mpse.technology_progress", technology.force.name, technology.name})
             end
         end
@@ -260,7 +261,7 @@ if settings.global["shared-research-progress"] then
         for __, f in pairs(game.forces) do
             for __, t in pairs(f.technologies) do
                 if t.researched then
-                    boost_research(new_force, t, 0.25)
+                    boost_research(new_force, t, 0.15)
                 end
             end
         end
